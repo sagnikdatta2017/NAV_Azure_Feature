@@ -1,0 +1,1097 @@
+OBJECT XMLport 50022 Create Mill PREGRN
+{
+  OBJECT-PROPERTIES
+  {
+    Date=16/08/21;
+    Time=12:09:48;
+    Modified=Yes;
+    Version List=I011,I1001,ISR1319,ISR1320,BREXIT,A1419,A1726,AF1849;
+  }
+  PROPERTIES
+  {
+    CaptionML=[ENU=MILL Shipment Inbound (MILL to NAV);
+               ENG=MILL Shipment Inbound (MILL to NAV)];
+    Direction=Import;
+    Encoding=UTF-8;
+    DefaultFieldsValidation=No;
+    OnPreXMLport=BEGIN
+                   CLEARALL;
+                 END;
+
+    UseRequestPage=No;
+  }
+  ELEMENTS
+  {
+    { [{0805FA57-5FB4-463E-9CCE-5DE09BFB1290}];  ;MillReceipts        ;Element ;Table   ;
+                                                  VariableName=InteractionLog;
+                                                  SourceTable=Table50012;
+                                                  AutoSave=No;
+                                                  MaxOccurs=Once;
+                                                  Import::OnAfterInsertRecord=VAR
+                                                                                PostedWhseReceiptHeaderNo@50000 : Code[20];
+                                                                              BEGIN
+                                                                                CheckCountPostedReceipt;
+                                                                                CreateWarehouseRecipt;
+                                                                                //TCS SD AZURE 1849
+                                                                                IF( CheckLisburnTeesside(PurchaseOrderNo, PurchaseOrderItem)) AND (CSINumber = '0270237') THEN
+                                                                                  BEGIN
+                                                                                //IF (CSINumber = '2932083') AND (MultInd = '') THEN BEGIN //TCS SR ISR 1321 01/07/19
+                                                                                   PostCreatedReceipt;
+                                                                                   ReCreateManualWarehouseRecipt;
+                                                                                   PostManualRecieptLine;
+                                                                                   GetPostedWhseReceiptHeader(PostedWhseReceiptHeaderNo);
+                                                                                   InteractionLog.UpdateImportLog(DATABASE::"Posted Whse. Receipt Header",0,PostedWhseReceiptHeaderNo,'',0);
+                                                                                 END;
+                                                                                //END; //TCS SR ISR 1321 01/07/19
+                                                                              END;
+                                                                               }
+
+    { [{BCC283B3-3457-44FB-9A9D-86DDD60C978F}];1 ;Message             ;Element ;Text     }
+
+    { [{944E1C21-D2A6-4213-9851-940CCD8F1A31}];2 ;MessageNo           ;Element ;Text     }
+
+    { [{784C6589-BE59-4858-907A-819591CE2EE3}];2 ;MsgName             ;Element ;Text     }
+
+    { [{1F71E068-46A4-4D91-8C43-D8395F015B18}];2 ;TransmissionDate    ;Element ;Text     }
+
+    { [{AC8E7C08-2E7B-479E-94A8-540B72B22D67}];2 ;TransmissionTime    ;Element ;Text     }
+
+    { [{7D2AD5DC-C865-4A4F-9297-873F67202DE3}];2 ;TransmissionFrom    ;Element ;Text     }
+
+    { [{9541F75B-44CD-4B39-8AC0-321367805396}];2 ;Body                ;Element ;Text    ;
+                                                  MaxOccurs=Once }
+
+    { [{B9CBE217-82FA-495D-8244-57874EC0F34D}];3 ;DeliveryNoteNbr     ;Element ;Text     }
+
+    { [{A7675F39-199D-4EC7-B8E6-029D93EBB00E}];3 ;MethodOfDelivery    ;Element ;Text     }
+
+    { [{37C63F81-65FD-4DDC-B778-EC31915E74C7}];3 ;CSINumber           ;Element ;Text     }
+
+    { [{C1C1C1C4-B33C-4ED1-B1CB-DF1EA5EEB02A}];3 ;Lines               ;Element ;Text     }
+
+    { [{90A2DD8E-8F40-49DD-9FB7-61F3285905DB}];4 ;Line                ;Element ;Text    ;
+                                                  Import::OnAfterAssignVariable=BEGIN
+                                                                                  IF NOT LotAlreadyReceived THEN BEGIN //TCS SR ISR 1319 01/07/19
+                                                                                    FindPurchaseLine;
+                                                                                    IF MultInd <>'NO' THEN//TCS SR ISR 1320 01/07/19
+                                                                                      InsertMultInfo;//TCS SR ISR 1320 01/07/19
+                                                                                  END;
+                                                                                END;
+                                                                                 }
+
+    { [{A3B450B0-1015-4052-8C6A-810083ADD168}];5 ;PurchaseOrderNumber ;Element ;Text    ;
+                                                  Import::OnAfterAssignVariable=BEGIN
+                                                                                  PurchaseOrderNumber := COPYSTR(PurchaseOrderNumber , 1,8);// Ami eta korlam, karon PurchaseOrderNumber refernce onek jaiga te ache
+                                                                                END;
+                                                                                 }
+
+    { [{9946FF5D-F576-4CC1-A31D-60C45952C281}];5 ;PurchaseOrderItem   ;Element ;Text     }
+
+    { [{425E58C1-122E-4097-AE64-03241A580E69}];5 ;PieceNumber         ;Element ;Text     }
+
+    { [{52131BCA-9DE0-471C-AD54-5C2D87243E19}];5 ;MillID              ;Element ;Text     }
+
+    { [{EBE91471-3B22-452D-9F07-5FE56CAC272D}];5 ;CastNum             ;Element ;Text     }
+
+    { [{1D2B8B1E-9623-4828-B1EB-9E2288AF18F9}];5 ;Pieces              ;Element ;Text     }
+
+    { [{1041096D-1E7D-42B2-8D93-185238A3C52B}];5 ;ProductDetails      ;Element ;Text    ;
+                                                  Import::OnAfterAssignVariable=BEGIN
+                                                                                  EVALUATE(BM18Length,Pieces); //NEW CODE
+                                                                                END;
+                                                                                 }
+
+    { [{124C26C1-EA5D-41FB-B45F-D30E54D0A0FE}];5 ;DespatchedPieces    ;Element ;Text     }
+
+    { [{B28550F5-61D2-4B66-B287-0D17B39CB7DD}];5 ;DispatchedWeight    ;Element ;Text     }
+
+    { [{DA2489CC-1DDB-433B-A86A-F1C927DB690A}];5 ;LocationInWarehouse ;Element ;Text    ;
+                                                  Import::OnAfterAssignVariable=BEGIN
+                                                                                  //TCS SR ISR 1320 01/07/19 START
+                                                                                  IF LocationInWarehouse = '' THEN
+                                                                                    IF MULTInfo.GET(PurchaseOrderNumber,PurchaseOrderItem,PieceNumber) THEN
+                                                                                      LocationInWarehouse := MULTInfo.Bin;
+                                                                                  //TCS SR ISR 1320 01/07/19 END
+                                                                                END;
+                                                                                 }
+
+    { [{CFCEB28B-EDFA-4F3D-A1BB-9F40DF553E18}];5 ;MultInd             ;Element ;Text     }
+
+  }
+  EVENTS
+  {
+  }
+  REQUESTPAGE
+  {
+    PROPERTIES
+    {
+    }
+    CONTROLS
+    {
+    }
+  }
+  CODE
+  {
+    VAR
+      TempPurchaseLine@50001 : TEMPORARY Record 39;
+      TempLocation@50002 : TEMPORARY Record 14;
+      TempPurchaseHeader@50000 : TEMPORARY Record 38;
+      TempWarehouseReceiptHeader@50003 : TEMPORARY Record 7316;
+      LineCantCreateMsg@50005 : TextConst 'ENU=Warehouse Receipt can not be created (Purchase Order %1 Line %2);ENG=Warehouse Receipt can not be created (Purchase Order %1 Line %2)';
+      WarehouseRequestNotExistMsg@50006 : TextConst 'ENU=Warehouse Receipt can not be created (Purchase Order %1);ENG=Warehouse Receipt can not be created (Purchase Order %1)';
+      TempWarehouseReceiptHeaderManual@50004 : TEMPORARY Record 7316;
+      CountReceiptErrorMsg@50008 : TextConst 'ENU=Can not post more than 1 Warehouse Receipt.;ENG=Can not post more than 1 Warehouse Receipt.';
+      PurchaseLineNotFoundMsg@50007 : TextConst 'ENU=NAV & IBM Purchase Order Mismatch :- NAV PO: %1,  Mill Line No : %2 Í Not Found on NAV;ENG=Purchase Order: %1, %2: %3 not found';
+      MULTInfo@50009 : Record 50054;
+      Mult1@50010 : Text;
+      BM18Length@50011 : Integer;
+      PurchLineMismatch@50012 : TextConst 'ENU="Length Mismatch :- NAV PO: %1, Mill Line No: %2. NAV Length = %3 , IBM Length = %4.";ENG="Length Mismatch :- NAV PO: %1, Mill Line No: %2. NAV Length = %3 , IBM Length = %4."';
+      Vendor@50013 : Record 23;
+      Descript@50014 : Text[250];
+      Item@50015 : Record 27;
+      Item2@50016 : Record 27;
+      SKUMismatch@50017 : TextConst 'ENU="Product Mismatch :- IBM = %1, NAV = %2 Í NAV Product must match IBM."';
+      PurchaseOrderNo@50018 : Code[20];
+      PurchaseLineNo@50019 : Integer;
+      TempSalesLine@50022 : TEMPORARY Record 37;
+      Reservation@50023 : Page 498;
+
+    LOCAL PROCEDURE FindPurchaseLine@50001();
+    VAR
+      PurchaseLine@50000 : Record 39;
+      DecimalValue@50001 : Decimal;
+      PurchaseHeader@50002 : Record 38;
+      DecimalValue2@50003 : Decimal;
+      QtytoReceive@50004 : Decimal;
+    BEGIN
+      PurchaseHeader.GET(PurchaseHeader."Document Type"::Order,PurchaseOrderNumber);
+      PurchaseHeader.VALIDATE("Posting Date",WORKDATE);
+      PurchaseHeader.MODIFY;
+
+      CheckWarehouseRequest(PurchaseHeader);
+      IF NOT TempPurchaseHeader.GET(PurchaseHeader."Document Type",PurchaseHeader."No.") THEN BEGIN
+        TempPurchaseHeader := PurchaseHeader;
+        TempPurchaseHeader.INSERT;
+      END;
+
+      PurchaseLine.SETRANGE("Document Type",PurchaseLine."Document Type"::Order);
+      //SD TCS  azure 820
+      PurchaseLine.SETRANGE("Document No.",PurchaseOrderNumber);
+      //PurchaseLine.SETRANGE("Document No." , COPYSTR(PurchaseOrderNumber , 1,8));
+
+      PurchaseLine.SETRANGE("Mill Line No.",PurchaseOrderItem);
+      IF NOT PurchaseLine.FINDFIRST THEN
+        ERROR(PurchaseLineNotFoundMsg,PurchaseOrderNumber,PurchaseOrderItem);
+
+      //TCS SS A1419 21.01.21 START
+      Descript:=FormatProductDescription(ProductDetails);
+      Item.RESET;
+      Item.SETRANGE(Description,Descript);
+      IF Item.FINDFIRST THEN BEGIN
+       //Item.TESTFIELD("No.",PurchaseLine."No.");
+        IF Item."No."<> PurchaseLine."No." THEN BEGIN
+          Item2.RESET;
+          Item2.SETRANGE("No.",PurchaseLine."No.");
+          IF Item2.FINDFIRST THEN
+          ERROR(SKUMismatch,ProductDetails,Item2.Description);
+        END;
+      END;
+      //Item.GET(PurchaseLine."No.");
+      //TCS SS A1419 21.01.21 END
+
+      IF PurchaseLine.Length <> BM18Length THEN //NEW CODE TO CHECK LENGTH
+        ERROR(PurchLineMismatch,PurchaseOrderNumber,PurchaseOrderItem,PurchaseLine.Length,BM18Length);//NEW CODE TO CHECK LENGTH
+
+      Item.TESTFIELD("Lot Nos.");
+
+      //TCS SR ID1001 08/10/18
+      IF NOT TempPurchaseLine.GET(PurchaseLine."Document Type",PurchaseLine."Document No.",PurchaseLine."Line No.") THEN BEGIN
+      //TCS SR ID1001 08/10/18
+        TempPurchaseLine := PurchaseLine;
+        TempPurchaseLine."Quantity Invoiced" := 0;//TCS
+        EVALUATE(DecimalValue,DespatchedPieces);
+        IF PurchaseLine."Outstanding Quantity" < DecimalValue THEN BEGIN
+          TempPurchaseLine.Quantity += DecimalValue - PurchaseLine."Outstanding Quantity";
+          TempPurchaseLine."Initial Purchase Order Qty." := PurchaseLine.Quantity;
+        END;
+        TempPurchaseLine."Qty. to Receive" := DecimalValue;
+        TempPurchaseLine."Qty. to Receive (Base)" := (ROUND(DecimalValue * PurchaseLine."Qty. per Unit of Measure",0.00001));
+
+      // latest azure 1315 BM24 CHANGES
+        IF TransmissionFrom = 'BM18' THEN
+          BEGIN
+            CheckBinCode(PurchaseLine,LocationInWarehouse);
+          END;
+        //CheckBinCode(PurchaseLine,LocationInWarehouse);
+
+      // latest azure 1315 BM24 CHANGES
+        TempPurchaseLine."Bin Code" := LocationInWarehouse;
+
+        TempPurchaseLine.Description := PieceNumber;
+        TempPurchaseLine."Description 2" := MillID;
+        TempPurchaseLine."Unit of Measure" := CastNum;
+
+        //TCS SR 1320 18/11/19 START
+        IF MultInd <> 'NO' THEN
+          TempPurchaseLine."Quantity Invoiced" := DecimalValue;
+        //TCS SR 1320 18/11/19 END
+
+        CheckDeleteTracking(TempPurchaseLine); //TCS SR ISR 1319 01/07/19
+        FindManualReceiptLine(TempPurchaseLine);
+        TempPurchaseLine.INSERT;
+        CheckCountPostedReceipt;
+        IF TempPurchaseLine."Special Order" THEN
+          EXIT;
+        IF NOT TempLocation.GET(PurchaseLine."Location Code") THEN BEGIN
+
+          TempLocation.Code := PurchaseLine."Location Code";
+          TempLocation.INSERT;
+        END;
+        //TCS SR ID1001 08/10/18 START
+        //CheckDeleteTracking(TempPurchaseLine); //Integrity
+        InsertItemTracking(TempPurchaseLine,ROUND(DecimalValue * PurchaseLine."Qty. per Unit of Measure",0.00001));
+      END ELSE BEGIN
+        EVALUATE(DecimalValue,DespatchedPieces);
+        //TCS SR ISR 1319 01/07/19 START
+        IF PurchaseLine."Outstanding Quantity" < DecimalValue THEN BEGIN
+          TempPurchaseLine.Quantity += DecimalValue - PurchaseLine."Outstanding Quantity";
+          TempPurchaseLine."Initial Purchase Order Qty." := PurchaseLine.Quantity;
+        END;
+        //TCS SR ISR 1319 01/07/19 END
+        TempPurchaseLine."Qty. to Receive" += DecimalValue;
+        TempPurchaseLine."Qty. to Receive (Base)" += (ROUND(DecimalValue * PurchaseLine."Qty. per Unit of Measure",0.00001));
+
+        //TCS SR 1320 18/11/19 START
+        IF MultInd <> 'NO' THEN
+          TempPurchaseLine."Quantity Invoiced" += DecimalValue;
+        //TCS SR 1320 18/11/19 END
+
+        TempPurchaseLine.Description := PieceNumber;
+        TempPurchaseLine."Description 2" := MillID;
+        TempPurchaseLine."Unit of Measure" := CastNum;
+        TempPurchaseLine.MODIFY;
+        InsertItemTracking(TempPurchaseLine,ROUND(DecimalValue * PurchaseLine."Qty. per Unit of Measure",0.00001));
+      END;
+        //TCS SR ID1001 08/10/18 STOP
+
+      //TCS SR ISR 1319 01/07/19 START
+      IF PurchaseLine."Outstanding Quantity" < TempPurchaseLine."Qty. to Receive" THEN BEGIN
+        TempPurchaseLine.Quantity := TempPurchaseLine."Qty. to Receive" + PurchaseLine."Quantity Received";
+        TempPurchaseLine."Initial Purchase Order Qty." := PurchaseLine.Quantity;
+        TempPurchaseLine.MODIFY;
+      END;
+
+      //DeleteFromMultInfo;
+      //TCS SR ISR 1319 01/07/19 END
+    END;
+
+    LOCAL PROCEDURE CreateWarehouseReciptLine@50000(PurchaseHeader@50000 : Record 38;WarehouseReceiptNo@50003 : Code[10];ManualReceipt@50008 : Boolean);
+    VAR
+      WarehouseReceiptHeader@50001 : Record 7316;
+      WarehouseRequest@50002 : Record 5765;
+      GetSourceDocuments@50004 : Report 5753;
+      WhseCreateSourceDocument@50005 : Codeunit 5750;
+      PurchaseLine@50006 : Record 39;
+      LotNo@50007 : Code[20];
+    BEGIN
+      WarehouseReceiptHeader.GET(WarehouseReceiptNo);
+      PurchaseLine.SETRANGE("Document Type",PurchaseHeader."Document Type");
+      PurchaseLine.SETRANGE("Document No.",PurchaseHeader."No.");
+      PurchaseLine.SETRANGE("Location Code",WarehouseReceiptHeader."Location Code");
+      IF PurchaseLine.FINDSET THEN
+        REPEAT
+          IF TempPurchaseLine.GET(PurchaseLine."Document Type",PurchaseLine."Document No.",PurchaseLine."Line No.") THEN BEGIN
+            IF TempPurchaseLine."Special Order"  = ManualReceipt THEN BEGIN
+              IF NOT GetWarehouseReceiptLine(TempPurchaseLine) THEN BEGIN
+                IF NOT WhseCreateSourceDocument.CheckIfPurchLine2ReceiptLine(PurchaseLine) THEN
+                  ERROR(LineCantCreateMsg,PurchaseLine."Document No.",PurchaseLine."Line No.");
+                IF NOT WhseCreateSourceDocument.PurchLine2ReceiptLine(WarehouseReceiptHeader,PurchaseLine) THEN
+                  ERROR(LineCantCreateMsg,PurchaseLine."Document No.",PurchaseLine."Line No.");
+              END;
+              TempPurchaseLine.GET(PurchaseLine."Document Type",PurchaseLine."Document No.",PurchaseLine."Line No.");
+              //TCS SR 1320 18/11/19 START
+              //UpdateWarehouseReceiptLine(PurchaseLine,WarehouseReceiptHeader."No.",TempPurchaseLine."Qty. to Receive",TempPurchaseLine."Qty. to Receive (Base)");
+              UpdateWarehouseReceiptLine(PurchaseLine,WarehouseReceiptHeader."No.",TempPurchaseLine."Qty. to Receive",TempPurchaseLine."Qty. to Receive (Base)",
+                TempPurchaseLine."Quantity Invoiced");
+              //TCS SR 1320 18/11/19 END
+              //TCS SR ID1001 08/10/18
+              //InsertItemTracking(PurchaseLine,TempPurchaseLine."Qty. to Receive (Base)");
+            END;
+          END;
+        UNTIL PurchaseLine.NEXT = 0;
+    END;
+
+    LOCAL PROCEDURE CheckWarehouseRequest@50003(PurchaseHeader@50000 : Record 38);
+    VAR
+      WarehouseRequest@50001 : Record 5765;
+      ReleasePurchaseDocument@50002 : Codeunit 415;
+    BEGIN
+      WITH PurchaseHeader DO BEGIN
+        IF Status <> Status::Released THEN
+          ReleasePurchaseDocument.RUN(PurchaseHeader);
+        WarehouseRequest.SETRANGE(Type,WarehouseRequest.Type::Inbound);
+        WarehouseRequest.SETRANGE("Source Type",DATABASE::"Purchase Line");
+        WarehouseRequest.SETRANGE("Source Subtype","Document Type");
+        WarehouseRequest.SETRANGE("Source No.","No.");
+        WarehouseRequest.SETRANGE("Document Status",WarehouseRequest."Document Status"::Released);
+        IF WarehouseRequest.ISEMPTY THEN
+          ERROR(WarehouseRequestNotExistMsg,PurchaseHeader."No.");
+      END;
+    END;
+
+    LOCAL PROCEDURE CreateWarehouseRecipt@50029();
+    VAR
+      WarehouseReciptNo@50000 : Code[20];
+    BEGIN
+      TempLocation.RESET;
+      TempPurchaseHeader.RESET;
+      TempPurchaseLine.RESET;
+      TempPurchaseLine.SETRANGE("Special Order",FALSE);
+      IF TempPurchaseLine.ISEMPTY THEN
+        EXIT;
+      IF TempLocation.FINDSET THEN
+        REPEAT
+          TempWarehouseReceiptHeader.SETRANGE("Location Code",TempLocation.Code);
+          IF TempPurchaseHeader.FINDSET THEN
+            REPEAT
+              IF NOT TempWarehouseReceiptHeader.FINDFIRST THEN
+                WarehouseReciptNo := CreateWarehouseReciptHeader(TempLocation.Code)
+              ELSE
+                WarehouseReciptNo := TempWarehouseReceiptHeader."No.";
+              TempPurchaseLine.SETRANGE("Document Type",TempPurchaseHeader."Document Type");
+              TempPurchaseLine.SETRANGE("Document No.",TempPurchaseHeader."No.");
+              TempPurchaseLine.SETFILTER("Initial Purchase Order Qty.",'<>%1',0);
+              IF NOT TempPurchaseLine.ISEMPTY THEN
+                ChangePurchaseLineQuantity(TempPurchaseHeader);
+              TempPurchaseLine.SETRANGE("Initial Purchase Order Qty.");
+              CreateWarehouseReciptLine(TempPurchaseHeader,TempWarehouseReceiptHeader."No.",FALSE);
+            UNTIL TempPurchaseHeader.NEXT = 0;
+        UNTIL TempLocation.NEXT = 0;
+    END;
+
+    LOCAL PROCEDURE ChangePurchaseLineQuantity@50031(PurchaseHeaderTemp@50000 : Record 38);
+    VAR
+      ReleasePurchaseDocument@50001 : Codeunit 415;
+      PurchaseHeader@50002 : Record 38;
+      PurchaseLine@50003 : Record 39;
+    BEGIN
+      PurchaseHeader.GET(PurchaseHeaderTemp."Document Type",PurchaseHeaderTemp."No.");
+      ReleasePurchaseDocument.Reopen(PurchaseHeader);
+      IF TempPurchaseLine.FINDSET THEN
+        REPEAT
+          PurchaseLine.GET(TempPurchaseLine."Document Type",TempPurchaseLine."Document No.",TempPurchaseLine."Line No.");
+          IF TempPurchaseLine.Quantity > PurchaseLine.Quantity THEN
+            PurchaseLine.VALIDATE(Quantity,TempPurchaseLine.Quantity);
+          IF PurchaseLine."Initial Purchase Order Qty." = 0 THEN
+            PurchaseLine.VALIDATE("Initial Purchase Order Qty.",TempPurchaseLine."Initial Purchase Order Qty.");
+          PurchaseLine.MODIFY;
+        UNTIL TempPurchaseLine.NEXT = 0;
+      ReleasePurchaseDocument.RUN(PurchaseHeader);
+    END;
+
+    LOCAL PROCEDURE CreateWarehouseReciptHeader@50034(LocationCode@50000 : Code[10]) : Code[20];
+    VAR
+      Location@50001 : Record 14;
+      WarehouseReceiptHeader@50002 : Record 7316;
+    BEGIN
+      Location.GET(LocationCode);
+      Location.TESTFIELD("Require Receive");
+      WarehouseReceiptHeader.INIT;
+      WarehouseReceiptHeader."No." := '';
+      WarehouseReceiptHeader.VALIDATE("Location Code",Location.Code);
+      WarehouseReceiptHeader."Bin Code" := '';
+      WarehouseReceiptHeader."Vendor Shipment No." := DeliveryNoteNbr;
+      WarehouseReceiptHeader.LOCKTABLE;
+
+      WarehouseReceiptHeader.INSERT(TRUE);
+
+      TempWarehouseReceiptHeader := WarehouseReceiptHeader;
+      TempWarehouseReceiptHeader.INSERT;
+
+      EXIT(WarehouseReceiptHeader."No.");
+    END;
+
+    LOCAL PROCEDURE UpdateWarehouseReceiptLine@50004(PurchaseLine@50000 : Record 39;WarehouseReceiptHeaderNo@50002 : Code[20];QuantityToReceive@50003 : Decimal;QuantityToReceiveBase@50004 : Decimal;MultQty@50005 : Decimal);
+    VAR
+      WarehouseReceiptLine@50001 : Record 7317;
+    BEGIN
+      IF QuantityToReceive + QuantityToReceiveBase = 0 THEN
+        EXIT;
+      WarehouseReceiptLine.SETRANGE("No.",WarehouseReceiptHeaderNo);
+      WarehouseReceiptLine.SETRANGE("Source No.",PurchaseLine."Document No.");
+      WarehouseReceiptLine.SETRANGE("Source Line No.",PurchaseLine."Line No.");
+      WarehouseReceiptLine.FINDFIRST;
+      IF QuantityToReceive <> WarehouseReceiptLine."Qty. to Receive" THEN
+        WarehouseReceiptLine.VALIDATE("Qty. to Receive",QuantityToReceive);
+      WarehouseReceiptLine.VALIDATE("Qty. to Receive",QuantityToReceive - MultQty);//TCS SR 1320 18/11/2019
+      WarehouseReceiptLine.VALIDATE("Bin Code",TempPurchaseLine."Bin Code");
+      WarehouseReceiptLine.MODIFY;
+    END;
+
+    LOCAL PROCEDURE InsertLotNoInfo@50002(PurchaseLine@50000 : Record 39) : Code[10];
+    VAR
+      LotNoInformation@50001 : Record 6505;
+      NoSeriesMgt@50003 : Codeunit 396;
+      LotNoInformationDetail@50004 : Record 50025;
+    BEGIN
+      //Item.GET(PurchaseLine."No.");
+      IF TempPurchaseLine.Description <> '' THEN
+        LotNoInformation."Lot No." := TempPurchaseLine.Description
+      ELSE
+        LotNoInformation."Lot No." := NoSeriesMgt.GetNextNo(Item."Lot Nos.",WORKDATE,TRUE);
+
+      IF NOT LotNoInformation.GET(TempPurchaseLine."No.",TempPurchaseLine."Variant Code",LotNoInformation."Lot No.") THEN BEGIN
+        LotNoInformation."Item No." := PurchaseLine."No.";
+        LotNoInformation."Variant Code" := PurchaseLine."Variant Code";
+        LotNoInformation.INSERT(TRUE);
+      END;
+
+      TempPurchaseLine.GET(PurchaseLine."Document Type",PurchaseLine."Document No.",PurchaseLine."Line No.");
+      IF NOT LotNoInformationDetail.GET(LotNoInformation."Lot No.") THEN BEGIN
+        LotNoInformationDetail.INIT;
+        LotNoInformationDetail."Lot No." := LotNoInformation."Lot No.";
+        LotNoInformationDetail.VALIDATE("Mill ID",TempPurchaseLine."Description 2");
+        LotNoInformationDetail.VALIDATE("Cast No.",TempPurchaseLine."Unit of Measure");
+        LotNoInformationDetail.VALIDATE("Piece No.",TempPurchaseLine.Description);
+        LotNoInformationDetail.VALIDATE(Color,'NO COLOUR');
+        //TCS SD BREXIT START
+        //TCS SD  country of origin
+        Vendor.RESET;
+        Vendor.SETRANGE("No." , TempPurchaseLine."Buy-from Vendor No.");
+        IF Vendor.FINDFIRST THEN
+          BEGIN
+            LotNoInformationDetail."Country of Origin" := Vendor."Country/Region Code";
+          END ELSE BEGIN
+            LotNoInformationDetail."Country of Origin" := ' ';
+          END;
+        //TCS SD BREXIT END
+        LotNoInformationDetail.INSERT(TRUE);
+      END;
+      EXIT(LotNoInformation."Lot No.");
+    END;
+
+    LOCAL PROCEDURE InsertItemTracking@50006(PurchaseLine@50004 : Record 39;QuantityToReceiptBase@50007 : Decimal);
+    VAR
+      TrackingSpecification@50000 : Record 336;
+      ReservationEntry@50001 : Record 337;
+      CreateReservEntry@50002 : Codeunit 99000830;
+      CurrentEntryStatus@50003 : 'Reservation,Tracking,Surplus,Prospect';
+      ExpectedReceiptDate@50005 : Date;
+      ShipmentDate@50006 : Date;
+    BEGIN
+      PurchaseLine.Quantity := PurchaseLine.Quantity - PurchaseLine."Quantity Received";
+      PurchaseLine."Quantity Received" := 0;
+      PurchaseLine."Quantity (Base)" := PurchaseLine."Quantity (Base)" - PurchaseLine."Qty. Received (Base)";
+      PurchaseLine."Qty. Received (Base)" := 0;
+      TrackingSpecification.InitFromPurchLine(PurchaseLine);
+
+      TrackingSpecification.VALIDATE("Lot No.",InsertLotNoInfo(PurchaseLine));
+      CreateReservEntry.SetDates(
+        TrackingSpecification."Warranty Date",TrackingSpecification."Expiration Date");
+      CreateReservEntry.SetApplyFromEntryNo(TrackingSpecification."Appl.-from Item Entry");
+      CreateReservEntry.SetApplyToEntryNo(TrackingSpecification."Appl.-to Item Entry");
+      CreateReservEntry.CreateReservEntryFor(
+        TrackingSpecification."Source Type",
+        TrackingSpecification."Source Subtype",
+        TrackingSpecification."Source ID",
+        TrackingSpecification."Source Batch Name",
+        TrackingSpecification."Source Prod. Order Line",
+        TrackingSpecification."Source Ref. No.",
+        TrackingSpecification."Qty. per Unit of Measure",
+        0,
+        QuantityToReceiptBase,
+        TrackingSpecification."Serial No.",
+        TrackingSpecification."Lot No.");
+
+      ReservationEntry."Source Type" := TrackingSpecification."Source Type";
+      ReservationEntry."Source Subtype" := TrackingSpecification."Source Subtype";
+      IF CreateReservEntry.SignFactor(ReservationEntry) < 0 THEN BEGIN
+        ExpectedReceiptDate := 0D;
+        ShipmentDate := TODAY;
+      END ELSE BEGIN
+        ExpectedReceiptDate := TODAY;
+        ShipmentDate := 0D;
+      END;
+
+      CreateReservEntry.CreateEntry(TrackingSpecification."Item No.",
+        TrackingSpecification."Variant Code",
+        TrackingSpecification."Location Code",
+        TrackingSpecification.Description,
+        ExpectedReceiptDate,
+        ShipmentDate,0,CurrentEntryStatus::Surplus);
+    END;
+
+    LOCAL PROCEDURE DeleteWarehouseReceipt@50041(WarehouseReceiptHeader@50000 : Record 7316);
+    VAR
+      WhseRcptLine@50001 : Record 7317;
+      CrossDockOpp@50002 : Record 5768;
+      WhseCommentLine@50003 : Record 5770;
+    BEGIN
+      WhseRcptLine.SETRANGE("No.",WarehouseReceiptHeader."No.");
+      WhseRcptLine.DELETEALL;
+
+      CrossDockOpp.SETRANGE("Source Template Name",'');
+      CrossDockOpp.SETRANGE("Source Name/No.",WarehouseReceiptHeader."No.");
+      CrossDockOpp.DELETEALL;
+
+      WhseCommentLine.SETRANGE("Table Name",WhseCommentLine."Table Name"::"Whse. Receipt");
+      WhseCommentLine.SETRANGE(Type,WhseCommentLine.Type::" ");
+      WhseCommentLine.SETRANGE("No.",WarehouseReceiptHeader."No.");
+
+      WhseCommentLine.DELETEALL;
+      WarehouseReceiptHeader.DELETE(TRUE);
+    END;
+
+    LOCAL PROCEDURE FindManualReceiptLine@50014(VAR PurchaseLine@50000 : Record 39);
+    VAR
+      WarehouseReceiptLine@50001 : Record 7317;
+      WarehouseReceiptHeader@50002 : Record 7316;
+    BEGIN
+      WarehouseReceiptLine.SETRANGE("Source Type",DATABASE::"Purchase Line");
+      WarehouseReceiptLine.SETRANGE("Source No.",PurchaseLine."Document No.");
+      WarehouseReceiptLine.SETRANGE("Source Subtype",PurchaseLine."Document Type");
+      WarehouseReceiptLine.SETRANGE("Source Line No.",PurchaseLine."Line No.");
+      IF WarehouseReceiptLine.FINDFIRST THEN BEGIN
+        PurchaseLine."Special Order" := TRUE;
+        PurchaseLine."Vendor Item No." := WarehouseReceiptLine."No.";
+        WarehouseReceiptHeader.GET(WarehouseReceiptLine."No.");
+        IF WarehouseReceiptHeader."Vendor Shipment No." <> UPPERCASE(DeliveryNoteNbr) THEN BEGIN
+          WarehouseReceiptHeader."Vendor Shipment No." := DeliveryNoteNbr;
+          WarehouseReceiptHeader.MODIFY;
+        END;
+        IF NOT TempWarehouseReceiptHeaderManual.GET(WarehouseReceiptHeader."No.") THEN BEGIN
+          TempWarehouseReceiptHeaderManual := WarehouseReceiptHeader;
+          TempWarehouseReceiptHeaderManual.INSERT;
+          WarehouseReceiptLine.RESET;
+          WarehouseReceiptLine.SETRANGE("No.",WarehouseReceiptHeader."No.");
+          WarehouseReceiptLine.MODIFYALL("Qty. to Receive (Base)",0,TRUE);
+        END;
+        EXIT;
+      END;
+      PurchaseLine."Special Order" := FALSE;
+      PurchaseLine."Vendor Item No." := '';
+    END;
+
+    LOCAL PROCEDURE DeleteManualReceiptLine@50017();
+    VAR
+      WarehouseReceiptLine@50002 : Record 7317;
+    BEGIN
+      IF TempPurchaseLine.FINDSET THEN
+        REPEAT
+          WarehouseReceiptLine.SETRANGE("Source Type",DATABASE::"Purchase Line");
+          WarehouseReceiptLine.SETRANGE("Source No.",TempPurchaseLine."Document No.");
+          WarehouseReceiptLine.SETRANGE("Source Subtype",TempPurchaseLine."Document Type");
+          WarehouseReceiptLine.SETRANGE("Source Line No.",TempPurchaseLine."Line No.");
+          IF WarehouseReceiptLine.FINDFIRST THEN
+            WarehouseReceiptLine.DELETE;
+        UNTIL TempPurchaseLine.NEXT = 0;
+
+
+
+      // ADDED TWO CHECKS TO SKIP  Q LOADS FOR TEESSIDE TO GET AUTO POSTED .
+    END;
+
+    LOCAL PROCEDURE PostCreatedReceipt@50020();
+    VAR
+      WarehouseReceiptHeader@50001 : Record 7316;
+      WarehouseReceiptLine@50000 : Record 7317;
+    BEGIN
+      TempWarehouseReceiptHeader.RESET;
+      IF TempWarehouseReceiptHeader.FINDSET THEN
+        REPEAT
+          WarehouseReceiptLine.SETRANGE("No.",TempWarehouseReceiptHeader."No.");
+          IF WarehouseReceiptLine.FINDFIRST THEN
+            BEGIN
+            WarehouseReceiptHeader.SETRANGE("No.", TempWarehouseReceiptHeader."No.");
+              IF WarehouseReceiptHeader.FINDFIRST THEN
+                BEGIN
+                  IF COPYSTR(WarehouseReceiptHeader."Vendor Shipment No." , 1,1) <> 'Q' THEN
+                    BEGIN
+                      IF TransmissionFrom <> 'BM24' THEN
+                        BEGIN
+
+                             IF CheckReceiveLines(WarehouseReceiptLine) THEN
+                                BEGIN //TCS SR ISR 1320
+                                  GetPurchDetails(WarehouseReceiptLine); //TCS SS A1726 30.06.21
+                                  CODEUNIT.RUN(CODEUNIT::"Whse.-Post Receipt",WarehouseReceiptLine);
+                                  UpdateReservationEntries(PurchaseOrderNo,PurchaseLineNo); //TCS SS A1726 30.06.21
+                                END;
+                        END;
+
+                    END;
+                END;
+            END;
+          //IF WarehouseReceiptHeader.GET(TempWarehouseReceiptHeader."No.") THEN
+            //DeleteWarehouseReceipt(WarehouseReceiptHeader);
+        UNTIL TempWarehouseReceiptHeader.NEXT = 0;
+
+      // ADDED TWO CHECKS TO SKIP  Q LOADS FOR TEESSIDE TO GET AUTO POSTED .
+    END;
+
+    LOCAL PROCEDURE PostManualRecieptLine@50022();
+    VAR
+      WarehouseReceiptLine@50000 : Record 7317;
+      WarehouseReceiptLine2@50001 : Record 7317;
+      TempWarehouseReceiptLine@50002 : TEMPORARY Record 7317;
+      WarehouseReceiptHeader@50003 : Record 7316;
+    BEGIN
+      TempWarehouseReceiptHeaderManual.RESET;
+      IF TempWarehouseReceiptHeaderManual.FINDSET THEN
+        REPEAT
+          WarehouseReceiptHeader.SETRANGE("No.", TempWarehouseReceiptHeaderManual."No.");
+          IF WarehouseReceiptHeader.FINDFIRST THEN
+            BEGIN
+              IF COPYSTR(WarehouseReceiptHeader."Vendor Shipment No." ,1 ,1) <> 'Q' THEN
+                BEGIN
+                  IF TransmissionFrom <> 'BM24' THEN
+                    BEGIN
+
+                        WarehouseReceiptLine.SETRANGE("No.",TempWarehouseReceiptHeaderManual."No.");
+                        WarehouseReceiptLine.SETFILTER("Qty. to Receive (Base)",'<>%1',0);
+                        IF  WarehouseReceiptLine.FINDFIRST THEN
+                          BEGIN
+                           CODEUNIT.RUN(CODEUNIT::"Whse.-Post Receipt",WarehouseReceiptLine);
+                         END;
+                   END;
+
+                END;
+            END;
+        UNTIL TempWarehouseReceiptHeaderManual.NEXT = 0;
+    END;
+
+    LOCAL PROCEDURE ReCreateManualWarehouseRecipt@50025();
+    BEGIN
+      TempPurchaseHeader.RESET;
+      TempPurchaseLine.SETRANGE("Special Order",TRUE);
+      IF TempPurchaseHeader.FINDSET THEN
+        REPEAT
+          TempPurchaseLine.SETRANGE("Document Type",TempPurchaseHeader."Document Type");
+          TempPurchaseLine.SETRANGE("Document No.",TempPurchaseHeader."No.");
+          TempPurchaseLine.SETFILTER("Initial Purchase Order Qty.",'<>%1',0);
+          IF NOT TempPurchaseLine.ISEMPTY THEN BEGIN
+            DeleteManualReceiptLine;
+            ChangePurchaseLineQuantity(TempPurchaseHeader);
+          END;
+          TempPurchaseLine.SETRANGE("Initial Purchase Order Qty.");
+          IF TempPurchaseLine.FINDSET THEN
+            REPEAT
+              CreateWarehouseReciptLine(TempPurchaseHeader,TempPurchaseLine."Vendor Item No.",TRUE);
+            UNTIL TempPurchaseLine.NEXT = 0;
+      UNTIL TempPurchaseHeader.NEXT = 0
+    END;
+
+    LOCAL PROCEDURE GetWarehouseReceiptLine@50019(PurchaseLine@50001 : Record 39) : Boolean;
+    VAR
+      WarehouseReceiptLine@50000 : Record 7317;
+    BEGIN
+      WarehouseReceiptLine.SETRANGE("Source Type",DATABASE::"Purchase Line");
+      WarehouseReceiptLine.SETRANGE("Source No.",PurchaseLine."Document No.");
+      WarehouseReceiptLine.SETRANGE("Source Subtype",PurchaseLine."Document Type");
+      WarehouseReceiptLine.SETRANGE("Source Line No.",PurchaseLine."Line No.");
+      IF NOT WarehouseReceiptLine.ISEMPTY
+        THEN EXIT(TRUE);
+      EXIT(FALSE);
+    END;
+
+    LOCAL PROCEDURE CheckBinCode@50010(PurchaseLine@50000 : Record 39;BinCode@50001 : Code[10]);
+    VAR
+      Location@50002 : Record 14;
+      Zone@50003 : Record 7300;
+      Bin@50004 : Record 7354;
+      WhseIntegrationMgt@50005 : Codeunit 7317;
+      WarehouseReceiptLine@50006 : Record 7317;
+    BEGIN
+      Location.GET(PurchaseLine."Location Code");
+      Bin.GET(Location.Code,UPPERCASE(BinCode));
+      WhseIntegrationMgt.CheckBinTypeCode(DATABASE::"Warehouse Receipt Line",WarehouseReceiptLine.FIELDCAPTION("Bin Code"),Location.Code,Bin.Code,0);
+    END;
+
+    LOCAL PROCEDURE CheckCountPostedReceipt@50005();
+    BEGIN
+      IF TempLocation.COUNT + TempWarehouseReceiptHeaderManual.COUNT > 1 THEN
+        ERROR(CountReceiptErrorMsg);
+    END;
+
+    LOCAL PROCEDURE GetPostedWhseReceiptHeader@50007(VAR PostedWhseReceiptHeaderNo@50000 : Code[20]);
+    VAR
+      PostedWhseReceiptHeader@50001 : Record 7318;
+      WarehouseReceiptHeaderNo@50002 : Code[20];
+    BEGIN
+      TempWarehouseReceiptHeader.RESET;
+      IF NOT TempWarehouseReceiptHeader.ISEMPTY THEN
+        WarehouseReceiptHeaderNo := TempWarehouseReceiptHeader."No.";
+      TempWarehouseReceiptHeaderManual.RESET;
+      IF NOT TempWarehouseReceiptHeaderManual.ISEMPTY THEN
+        WarehouseReceiptHeaderNo := TempWarehouseReceiptHeaderManual."No.";
+
+      PostedWhseReceiptHeader.SETRANGE("Whse. Receipt No.",WarehouseReceiptHeaderNo);
+
+      IF PostedWhseReceiptHeader.COUNT = 1 THEN BEGIN
+        PostedWhseReceiptHeader.FINDFIRST;
+        PostedWhseReceiptHeaderNo := PostedWhseReceiptHeader."No.";
+        EXIT;
+      END;
+      PostedWhseReceiptHeader.SETRANGE("Vendor Shipment No.",DeliveryNoteNbr);
+      IF PostedWhseReceiptHeader.COUNT = 1 THEN BEGIN
+        PostedWhseReceiptHeader.FINDFIRST;
+        PostedWhseReceiptHeaderNo := PostedWhseReceiptHeader."No.";
+        EXIT;
+      END;
+      //TCS SR ISR 1320 01/07/19 START
+      //PostedWhseReceiptHeader.FINDLAST;
+      IF PostedWhseReceiptHeader.FINDLAST THEN;
+      //TCS SR ISR 1320 01/07/19 END
+
+      PostedWhseReceiptHeaderNo := PostedWhseReceiptHeader."No.";
+    END;
+
+    LOCAL PROCEDURE CheckDeleteTracking@50008(PurchaseLine@50001 : Record 39);
+    VAR
+      ReservationEntry@50000 : Record 337;
+    BEGIN
+      //TCS SR ISR 1319 01/07/19 START
+      IF (NOT PurchaseLine."Drop Shipment") OR (NOT PurchaseLine."Special Order") THEN BEGIN
+        ReservationEntry.RESET;
+        ReservationEntry.SETRANGE("Item No.",PurchaseLine."No.");
+        ReservationEntry.SETRANGE("Variant Code",PurchaseLine."Variant Code");
+        ReservationEntry.SETRANGE("Location Code",PurchaseLine."Location Code");
+        ReservationEntry.SETRANGE("Source ID",PurchaseLine."Document No.");
+        ReservationEntry.SETRANGE("Source Ref. No.",PurchaseLine."Line No.");
+        ReservationEntry.SETRANGE("Reservation Status",ReservationEntry."Reservation Status"::Surplus);
+        IF ReservationEntry.FINDSET THEN
+          ReservationEntry.DELETEALL(TRUE);
+
+        CheckDeleteWarehouseReceipts(PurchaseLine);
+      END;
+      //TCS SR ISR 1319 01/07/19 END
+    END;
+
+    LOCAL PROCEDURE CheckDeleteWarehouseReceipts@50009(PurchaseLine@50000 : Record 39);
+    VAR
+      WarehouseReceiptLine@50002 : Record 7317;
+      WarehouseReceiptHeader@50001 : Record 7316;
+      WarehouseReceiptLine2@50003 : Record 7317;
+      WarehouseReceipt@50004 : Code[20];
+    BEGIN
+      //TCS SR ISR 1319 01/07/19 START
+      WarehouseReceiptLine.SETCURRENTKEY("No.");
+      WarehouseReceiptLine.ASCENDING(TRUE);
+      WarehouseReceiptLine.SETRANGE("Source No.",PurchaseLine."Document No.");
+      WarehouseReceiptLine.SETRANGE("Source Line No.",PurchaseLine."Line No.");
+      IF WarehouseReceiptLine.FINDFIRST THEN BEGIN
+        WarehouseReceipt := WarehouseReceiptLine."No.";
+        WarehouseReceiptLine.DELETE(TRUE);
+      END;
+
+      IF WarehouseReceiptHeader.GET(WarehouseReceipt) THEN BEGIN
+        WarehouseReceiptLine2.RESET;
+        WarehouseReceiptLine2.SETRANGE("No.",WarehouseReceiptHeader."No.");
+        IF WarehouseReceiptLine2.ISEMPTY THEN
+          WarehouseReceiptHeader.DELETE(TRUE);
+      END;
+        //REPEAT
+          //IF WarehouseReceiptHeader.GET(WarehouseReceiptLine."No.") THEN
+            //WarehouseReceiptHeader.DELETE(TRUE);
+        //UNTIL WarehouseReceiptLine.NEXT = 0;
+      //END;
+      //TCS SR ISR 1319 01/07/19 END
+    END;
+
+    LOCAL PROCEDURE LotAlreadyReceived@50011() : Boolean;
+    VAR
+      TrackingSpecification@50000 : Record 336;
+      PurchaseLine@50002 : Record 39;
+    BEGIN
+      //TCS SR ISR 1319 01/07/19 START
+      PurchaseLine.RESET;
+      PurchaseLine.SETRANGE("Document Type",PurchaseLine."Document Type"::Order);
+      //SD TCS  azure 820
+      PurchaseLine.SETRANGE("Document No.",PurchaseOrderNumber);
+      //PurchaseLine.SETRANGE("Document No.",COPYSTR(PurchaseOrderNumber,1,8));
+      PurchaseLine.SETRANGE("Mill Line No.",PurchaseOrderItem);
+      IF PurchaseLine.FINDFIRST THEN BEGIN
+        TrackingSpecification.RESET;
+        TrackingSpecification.SETRANGE("Source Type",39);
+        TrackingSpecification.SETRANGE("Source ID",PurchaseLine."Document No.");
+        TrackingSpecification.SETRANGE("Source Ref. No.",PurchaseLine."Line No.");
+        TrackingSpecification.SETRANGE("Lot No.",PieceNumber);
+        IF TrackingSpecification.FINDFIRST THEN
+          EXIT(TRUE);
+      END;
+      EXIT(FALSE);
+      //TCS SR ISR 1319 01/07/19 END
+    END;
+
+    LOCAL PROCEDURE InsertMultInfo@50012();
+    VAR
+      MULTInformation@50005 : Record 50054;
+    BEGIN
+      //TCS SR ISR 1320 01/07/19 START
+      MULTInformation.RESET;
+      MULTInformation.SETRANGE("Order No.",PurchaseOrderNumber);
+      MULTInformation.SETRANGE("Mill Line No.",PurchaseOrderItem);
+      MULTInformation.SETRANGE("Lot No.",PieceNumber);
+      IF NOT MULTInformation.FINDFIRST THEN BEGIN
+        MULTInformation.INIT;
+        MULTInformation."Order No." := PurchaseOrderNumber;
+        MULTInformation."Mill Line No." := PurchaseOrderItem;
+        MULTInformation."Lot No." := PieceNumber;
+        MULTInformation."Cast No." := CastNum;
+        MULTInformation."Mill ID" := MillID;
+        MULTInformation.Blocked := TRUE;
+        MULTInformation."MULT Indicator" := MultInd;
+        MULTInformation.Bin := LocationInWarehouse;
+      //TCS SD NEW TO GET CHECKED BY SAPTARSHI
+        MULTInformation."Consignment Num" := DeliveryNoteNbr;
+        MULTInformation.INSERT;
+      END;
+
+      //FindPurchaseLine;
+      //TCS SR ISR 1320 01/07/19 END
+    END;
+
+    LOCAL PROCEDURE DeleteFromMultInfo@50013();
+    VAR
+      MULTInformation@50001 : Record 50054;
+    BEGIN
+      //TCS SR ISR 1320 01/07/19 START
+      MULTInformation.RESET;
+      MULTInformation.SETRANGE("Order No.",PurchaseOrderNumber);
+      MULTInformation.SETRANGE("Mill Line No.",PurchaseOrderItem);
+      MULTInformation.SETRANGE("Lot No.",PieceNumber);
+      IF MULTInformation.FINDFIRST THEN
+        MULTInformation.VALIDATE(Blocked,FALSE);
+      //TCS SR ISR 1320 01/07/19 END
+    END;
+
+    LOCAL PROCEDURE CheckReceiveLines@50015(WhseRecLine@50000 : Record 7317) : Boolean;
+    VAR
+      WhseRecptLine@50001 : Record 7317;
+      TotalWhseLines@50002 : Integer;
+      TotalZeroLines@50003 : Integer;
+    BEGIN
+      TotalZeroLines := 0;
+      WhseRecptLine.RESET;
+      WhseRecptLine.SETRANGE("No.",WhseRecLine."No.");
+      IF WhseRecptLine.FINDFIRST THEN BEGIN
+        TotalWhseLines := WhseRecptLine.COUNT;
+        REPEAT
+          IF WhseRecptLine."Qty. to Receive" = 0 THEN
+            TotalZeroLines += 1;
+        UNTIL WhseRecptLine.NEXT = 0
+      END;
+      IF TotalWhseLines > TotalZeroLines THEN
+        EXIT(TRUE);
+      EXIT(FALSE);
+    END;
+
+    LOCAL PROCEDURE FormatProductDescription@50016(Description@50000 : Text[250]) : Text;
+    VAR
+      Text@50001 : Text[250];
+      Text1@50002 : Text[250];
+      Text2@50003 : Text[250];
+      Text3@50004 : Text[250];
+      Value1@50012 : Decimal;
+      Value2@50013 : Integer;
+      Form@50016 : Text[250];
+      Grade@50017 : Text[250];
+      Size1@50018 : Text[250];
+      Size2@50019 : Text[250];
+      Size3@50020 : Text[250];
+      ProdDescription@50021 : Text[250];
+      StringLength@50009 : Integer;
+      Position1@50010 : Integer;
+    BEGIN
+      //TCS SS A1419 21.01.21 START
+
+      Text:=Description;
+
+      StringLength:=STRLEN(Text);
+
+      Position1:=STRPOS(Text,'-');
+
+      Text1:=DELSTR(Text,1,Position1);
+
+      Form:=DELSTR(Text,Position1,StringLength);
+
+      Position1:=STRPOS(Text1,'-');
+
+      StringLength:=STRLEN(Text1);
+
+      Grade:=DELSTR(Text1,Position1,StringLength);
+
+      Text2:=DELSTR(Text1,1,Position1);
+
+      Position1:=STRPOS(Text2,'-');
+
+      StringLength:=STRLEN(Text2);
+
+      Size1:=DELSTR(Text2,Position1,StringLength);
+
+      Text3:=DELSTR(Text2,1,Position1);
+
+      Position1:=STRPOS(Text3,'-');
+
+      StringLength:=STRLEN(Text3);
+
+      Size2:=DELSTR(Text3,Position1,StringLength);
+
+      Size3:=DELSTR(Text3,1,Position1);
+
+      Size1:=DELCHR(Size1,'<','0');
+
+      Size2:=DELCHR(Size2,'<','0');
+
+      EVALUATE(Value1,Size3);
+
+      Value2:=ROUND(Value1,1);
+
+      Size3:=FORMAT(Value2);
+
+      IF (Form ='EA') OR (Form='UA') THEN
+        Form:='AN';
+
+      IF Form ='CH' THEN
+        Form:='PC';
+
+      Grade:=DELCHR(Grade,'<','S');
+      Grade := COPYSTR(Grade,1,5);
+
+      ProdDescription:=Form + Grade + Size1 + Size2 + Size3 +'_';
+
+      EXIT(ProdDescription);
+
+      //TCS SS A1419 21.01.21 END
+    END;
+
+    LOCAL PROCEDURE GetPurchDetails@50018(WarehouseReceiptLine@50000 : Record 7317);
+    BEGIN
+      //TCS SS A1726 25.06.21 START
+      PurchaseOrderNo:= WarehouseReceiptLine."Source No.";
+      PurchaseLineNo:= WarehouseReceiptLine."Source Line No.";
+      //TCS SS A1726 25.06.21 END
+    END;
+
+    LOCAL PROCEDURE UpdateReservationEntries@50021(PurchOrderNo@50004 : Code[20];PurchLineNo@50005 : Integer);
+    VAR
+      ReservationEntry@50000 : Record 337;
+      EntryNo@50003 : Integer;
+      SalesLine@50001 : Record 37;
+      ReservationEntry2@50002 : Record 337;
+    BEGIN
+      //TCS SS A1726 30.06.21 START
+      TempSalesLine.DELETEALL;
+      ReservationEntry.RESET;
+      ReservationEntry.SETRANGE("Source ID",PurchOrderNo);
+      ReservationEntry.SETRANGE("Source Ref. No.",PurchLineNo);
+      ReservationEntry.SETRANGE(Positive,TRUE);
+      IF ReservationEntry.FINDSET THEN REPEAT
+        EntryNo:=ReservationEntry."Entry No.";
+        SetTempSalesLine(EntryNo);
+        ReservationEntry2.RESET;
+        ReservationEntry2.SETRANGE("Entry No.",EntryNo);
+        IF ReservationEntry2.FINDSET THEN
+          ReservationEntry2.DELETEALL(TRUE);
+      UNTIL ReservationEntry.NEXT=0;
+      AutoReserveSalesLine;
+      //TCS SS A1726 01.07.21 END
+    END;
+
+    LOCAL PROCEDURE SetTempSalesLine@50023(EntryNo@50000 : Integer);
+    VAR
+      ReservationEntry@50001 : Record 337;
+    BEGIN
+      //TCS SS A1726 01.07.21 START
+      ReservationEntry.RESET;
+      ReservationEntry.SETRANGE("Entry No.",EntryNo);
+      ReservationEntry.SETRANGE(Positive,FALSE);
+      IF ReservationEntry.FINDSET THEN REPEAT
+        IF NOT TempSalesLine.GET(TempSalesLine."Document Type"::Order,ReservationEntry."Source ID",ReservationEntry."Source Ref. No.") THEN BEGIN
+          TempSalesLine.RESET;
+          TempSalesLine.INIT;
+          TempSalesLine."Document Type":=TempSalesLine."Document Type"::Order;
+          TempSalesLine."Document No.":=ReservationEntry."Source ID";
+          TempSalesLine."Line No.":=ReservationEntry."Source Ref. No.";
+          TempSalesLine.INSERT;
+        END;
+      UNTIL ReservationEntry.NEXT=0;
+      //TCS SS A1726 01.07.21 END
+    END;
+
+    LOCAL PROCEDURE AutoReserveSalesLine@50026();
+    VAR
+      SalesLine@50000 : Record 37;
+    BEGIN
+      //TCS SS A1726 01.07.21 START
+      IF TempSalesLine.FINDSET(FALSE,FALSE) THEN REPEAT
+        SalesLine.RESET;
+        SalesLine.SETRANGE("Document Type",SalesLine."Document Type"::Order);
+        SalesLine.SETRANGE("Document No.",TempSalesLine."Document No.");
+        SalesLine.SETRANGE("Line No.",TempSalesLine."Line No.");
+        IF SalesLine.FINDFIRST THEN BEGIN
+          CLEAR(Reservation);
+          Reservation.SetSalesLine(SalesLine);
+          IF NOT GUIALLOWED THEN
+            Reservation.AutoReserve;
+        END;
+      UNTIL TempSalesLine.NEXT=0;
+
+      TempSalesLine.RESET;
+      //TCS SS A1726 01.07.21 END
+
+
+
+      //TCS SD AZURE 1849
+    END;
+
+    PROCEDURE CheckLisburnTeesside@50024(PurchaseOrder@50000 : Text[50];PurchaseItem@50001 : Text[50]) : Boolean;
+    VAR
+      PurchaseLineVar@50002 : Record 39;
+    BEGIN
+
+      PurchaseLineVar.RESET;
+      PurchaseLineVar.SETRANGE("Document No.", COPYSTR(PurchaseOrder, 1,8));
+      PurchaseLineVar.SETRANGE("Mill Line No.", COPYSTR(PurchaseOrderItem , 1, 3));
+      PurchaseLineVar.SETRANGE("Location Code" , 'A58');
+
+      IF PurchaseLineVar.FINDFIRST THEN
+        EXIT(TRUE);
+      EXIT(FALSE);
+
+    END;
+
+    BEGIN
+    {
+      TM OSR I011 17/07/17 "Mill Shipment Inbound (MILL to NAV)"
+        Object Created
+
+      TCS SR ID1001 08/10/18 Changed the logic of creating Item Tracking. Now tracking is created when each XML line is fetched, this is done
+        to cater the requirement where one PO line might be split in multiple XML lines with different Lot Nos.
+
+      TCS SR ISR 1319 01/07/19 Added function "CheckDeleteTracking"
+                               Added function "CheckDeleteWarehouseReceipts"
+                               Added function "LotAlreadyReceived"
+                               Modified function "InteractionLog - Import::OnAfterInsertRecord"
+                               Modified function "Line - Import::OnAfterAssignVariable"
+                               Modified function "FindPurchaseLine"
+
+      TCS SR ISR 1320 01/07/19 Added function "InsertMultInfo"
+                               Added function "DeleteFromMultInfo"
+
+      TCS  SD AZURE 820 01/07/2020 added a small check to restrict the PO check in Purchase header table  limit to 8 characters.
+
+      TCS SD AZURE      Added a small check  to restrict Q loads from getting auto posted for Teesside
+
+      TCS SD BREXIT   Added a check to ensure that all loads coming from TBM are assigned country code of 006.
+
+      TCS SS AZURE A1419 21/01/21  Added function FormatProductDescription to process the item description from BM18 ProductDetails String
+
+      TCS SS AZURE A1726 01/07/21 Added functions GetPurchDetails, UpdateReservationEntries, SetTempSalesLine and AutoReserveSalesLine
+                                  to modify the purchase and sales reservations after Auto Posting of receipts.
+
+      TCS SD AZURE 1849(FEATURE) This is added to counter the effect of Lisburn materials being dropped off at Teesside.
+    }
+    END.
+  }
+}
+
